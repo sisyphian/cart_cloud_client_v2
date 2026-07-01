@@ -1,0 +1,22 @@
+{
+  "name": "cart-cloud-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CartCloud Frontend Monorepo - 4 React apps + shared packages",
+  "scripts": {
+    "dev": "pnpm --filter \"./apps/*\" --parallel dev",
+    "build": "pnpm --filter \"./apps/*\" --parallel build",
+    "lint": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" lint",
+    "type-check": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" type-check",
+    "generate-api-client": "cd packages/api-client && npm run generate",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist packages/*/dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
