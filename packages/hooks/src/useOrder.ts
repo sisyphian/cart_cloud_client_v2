@@ -1,28 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useWebSocket } from '@cart-cloud/ws-client';
-import { apiClient } from '@cart-cloud/api-client';
-
-// Placeholder types - will be replaced with generated types
-interface Order {
-  id: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
-  estimatedReadyAt: string;
-  items: OrderItem[];
-  total: number;
-}
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-}
+import { mockApi } from '@cart-cloud/api-client';
+import type { Order } from '@cart-cloud/api-client';
 
 interface CreateOrderInput {
-  vendorId: string;
-  items: Array<{ menuItemId: string; quantity: number }>;
-  customerPhone: string;
-  customerName: string;
+  slug: string;
+  items: Array<{ menu_item_id: string; quantity: number; selected_option_choice_ids?: string[] }>;
+  payment_method: string;
+  special_instructions?: string;
 }
 
 // Query keys
@@ -32,45 +16,44 @@ export const orderKeys = {
   list: (filters: string) => [...orderKeys.lists(), { filters }] as const,
   details: () => [...orderKeys.all, 'detail'] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
+  customer: (customerId: string) => [...orderKeys.all, 'customer', customerId] as const,
+  kds: (cartId: string) => [...orderKeys.all, 'kds', cartId] as const,
 };
 
 // Fetch order by ID
 export const useOrder = (id: string) => {
-  const queryClient = useQueryClient();
-
-  // REST fetch
-  const query = useQuery({
+  return useQuery({
     queryKey: orderKeys.detail(id),
     queryFn: async () => {
-      const response = await apiClient.get(`/orders/${id}`);
-      return response.data as Order;
+      const response = await mockApi.getOrder(id);
+      return response.data as Order | null;
     },
     enabled: !!id,
   });
-
-  // WebSocket overlay for real-time updates
-  useWebSocket({
-    url: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/orders/',
-    enabled: !!id,
-    onMessage: (message) => {
-      if (message.type === 'order_update' && message.data.id === id) {
-        // Update the query cache with the new data
-        queryClient.setQueryData(orderKeys.detail(id), message.data);
-      }
-    },
-  });
-
-  return query;
 };
 
-// Fetch orders list (for dashboard, KDS, etc.)
-export const useOrders = (filters?: Record<string, any>) => {
+// Fetch customer orders
+export const useCustomerOrders = (customerId: string, page = 1, pageSize = 20) => {
   return useQuery({
-    queryKey: orderKeys.list(JSON.stringify(filters)),
+    queryKey: [...orderKeys.customer(customerId), page, pageSize],
     queryFn: async () => {
-      const response = await apiClient.get('/orders', { params: filters });
+      const response = await mockApi.getCustomerOrders(customerId, page, pageSize);
+      return response.data;
+    },
+    enabled: !!customerId,
+  });
+};
+
+// Fetch KDS queue for a cart
+export const useKDSQueue = (cartId: string) => {
+  return useQuery({
+    queryKey: orderKeys.kds(cartId),
+    queryFn: async () => {
+      const response = await mockApi.getKDSQueue(cartId);
       return response.data as Order[];
     },
+    enabled: !!cartId,
+    refetchInterval: 5000, // Poll every 5 seconds for KDS
   });
 };
 
@@ -80,7 +63,7 @@ export const useCreateOrder = () => {
 
   return useMutation({
     mutationFn: async (input: CreateOrderInput) => {
-      const response = await apiClient.post('/orders', input);
+      const response = await mockApi.createOrder(input.slug, input);
       return response.data as Order;
     },
     onSuccess: (data) => {
@@ -97,8 +80,25 @@ export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: Order['status'] }) => {
-      const response = await apiClient.patch(`/orders/${id}`, { status });
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const response = await mockApi.updateOrderStatus(id, status);
+      return response.data as Order;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(orderKeys.detail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: orderKeys.kds(data.cart_id) });
+    },
+  });
+};
+
+// Cancel order mutation
+export const useCancelOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const response = await mockApi.cancelOrder(id, reason);
       return response.data as Order;
     },
     onSuccess: (data) => {

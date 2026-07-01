@@ -1,100 +1,120 @@
-import { Routes, Route } from 'react-router-dom';
-import { Button, Card, CardHeader, CardTitle, CardContent } from '@cart-cloud/ui';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { PlatformSummary } from './components/PlatformSummary';
+import { VendorList } from './components/VendorList';
+import { useAdminPlatformSummary, useAdminVendors, useSuspendVendor } from '@cart-cloud/hooks';
 
 function App() {
   return (
-    <div className="min-h-screen">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">CartCloud Admin Console</h1>
-            <nav className="flex gap-4">
-              <Button variant="ghost">Dashboard</Button>
-              <Button variant="ghost">Tenants</Button>
-              <Button variant="ghost">Users</Button>
-              <Button variant="ghost">System</Button>
-            </nav>
+    <Routes>
+      <Route path="/" element={<AdminDashboard />} />
+      <Route path="/vendors" element={<Vendors />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function AdminDashboard() {
+  const navigate = useNavigate();
+  const { data: summary } = useAdminPlatformSummary();
+  const { data: vendors } = useAdminVendors();
+  const suspendVendor = useSuspendVendor();
+
+  const handleSuspendVendor = (vendorId: string, reason: string) => {
+    suspendVendor.mutate({ vendorId, reason });
+  };
+
+  const handleSelectVendor = (vendorId: string) => {
+    console.log('Selected vendor:', vendorId);
+    // Could navigate to vendor detail page
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">CartCloud Admin Console</h1>
+            <p className="text-sm text-gray-500">Platform Administration</p>
           </div>
+          <nav className="flex gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 text-orange-600 border-b-2 border-orange-600 font-medium"
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/vendors')}
+              className="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Vendors
+            </button>
+          </nav>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<AdminDashboard />} />
-          <Route path="/tenants" element={<div>Tenant Management</div>} />
-          <Route path="/users" element={<div>User Management</div>} />
-          <Route path="/system" element={<div>System Health</div>} />
-        </Routes>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {summary && <PlatformSummary summary={summary} />}
+        
+        {vendors && (
+          <VendorList
+            vendors={vendors}
+            onSelectVendor={handleSelectVendor}
+            onSuspendVendor={handleSuspendVendor}
+          />
+        )}
       </main>
     </div>
   );
 }
 
-function AdminDashboard() {
+function Vendors() {
+  const navigate = useNavigate();
+  const { data: vendors } = useAdminVendors();
+  const suspendVendor = useSuspendVendor();
+
+  const handleSuspendVendor = (vendorId: string, reason: string) => {
+    suspendVendor.mutate({ vendorId, reason });
+  };
+
+  const handleSelectVendor = (vendorId: string) => {
+    console.log('Selected vendor:', vendorId);
+  };
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Admin Dashboard</h2>
-      
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Tenants</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">156</div>
-            <p className="text-sm text-muted-foreground">Active vendors</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">12,345</div>
-            <p className="text-sm text-muted-foreground">All time</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">$45.2K</div>
-            <p className="text-sm text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">8,432</div>
-            <p className="text-sm text-muted-foreground">Last 30 days</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between border-b pb-4">
-                <div>
-                  <div className="font-medium">New tenant registered</div>
-                  <div className="text-sm text-muted-foreground">Taco Stand #{i}</div>
-                </div>
-                <div className="text-sm text-muted-foreground">{i * 5} min ago</div>
-              </div>
-            ))}
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">CartCloud Admin Console</h1>
+            <p className="text-sm text-gray-500">Platform Administration</p>
           </div>
-        </CardContent>
-      </Card>
+          <nav className="flex gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/vendors')}
+              className="px-4 py-2 text-orange-600 border-b-2 border-orange-600 font-medium"
+            >
+              Vendors
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {vendors && (
+          <VendorList
+            vendors={vendors}
+            onSelectVendor={handleSelectVendor}
+            onSuspendVendor={handleSuspendVendor}
+          />
+        )}
+      </main>
     </div>
   );
 }

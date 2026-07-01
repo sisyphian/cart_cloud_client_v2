@@ -1,62 +1,33 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@cart-cloud/api-client';
-
-// Placeholder types
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  available: boolean;
-  imageUrl?: string;
-}
-
-interface Vendor {
-  id: string;
-  name: string;
-  description: string;
-  location: string;
-}
+import { mockApi } from '@cart-cloud/api-client';
+import type { Cart, PublicMenuResponse } from '@cart-cloud/api-client';
 
 export const menuKeys = {
   all: ['menu'] as const,
-  vendors: () => [...menuKeys.all, 'vendors'] as const,
-  vendor: (id: string) => [...menuKeys.all, 'vendor', id] as const,
-  items: (vendorId: string) => [...menuKeys.all, 'items', vendorId] as const,
+  cart: (slug: string) => [...menuKeys.all, 'cart', slug] as const,
+  cartMenu: (slug: string) => [...menuKeys.all, 'cart-menu', slug] as const,
 };
 
-// Get all vendors
-export const useVendors = () => {
+// Get cart by slug
+export const useCartBySlug = (slug: string, qrToken?: string) => {
   return useQuery({
-    queryKey: menuKeys.vendors(),
+    queryKey: menuKeys.cart(slug),
     queryFn: async () => {
-      const response = await apiClient.get('/vendors');
-      return response.data as Vendor[];
+      const response = await mockApi.getCartBySlug(slug, qrToken);
+      return response.data as Cart | null;
     },
+    enabled: !!slug,
   });
 };
 
-// Get vendor details
-export const useVendor = (id: string) => {
+// Get cart menu
+export const useCartMenu = (slug: string, qrToken?: string) => {
   return useQuery({
-    queryKey: menuKeys.vendor(id),
+    queryKey: menuKeys.cartMenu(slug),
     queryFn: async () => {
-      const response = await apiClient.get(`/vendors/${id}`);
-      return response.data as Vendor;
+      const response = await mockApi.getCartMenu(slug, qrToken);
+      return response.data as PublicMenuResponse | null;
     },
-    enabled: !!id,
-  });
-};
-
-// Get menu items for a vendor
-export const useMenuItems = (vendorId: string) => {
-  return useQuery({
-    queryKey: menuKeys.items(vendorId),
-    queryFn: async () => {
-      const response = await apiClient.get(`/vendors/${vendorId}/menu`);
-      return response.data as MenuItem[];
-    },
-    enabled: !!vendorId,
+    enabled: !!slug,
   });
 };

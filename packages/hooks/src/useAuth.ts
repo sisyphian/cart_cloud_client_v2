@@ -1,22 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@cart-cloud/api-client';
-
-// Placeholder types
-interface User {
-  id: string;
-  phone: string;
-  name: string;
-  role: 'customer' | 'owner' | 'worker' | 'admin';
-}
-
-interface LoginInput {
-  phone: string;
-  name?: string;
-  code: string;
-}
+import { mockApi, mockCustomers } from '@cart-cloud/api-client';
+import type { Customer } from '@cart-cloud/api-client';
 
 interface SendCodeInput {
-  phone: string;
+  phone_number: string;
+  display_name: string;
+  device_id: string;
+}
+
+interface VerifyOtpInput {
+  otp_session_id: string;
+  otp_code: string;
 }
 
 export const authKeys = {
@@ -24,42 +18,44 @@ export const authKeys = {
   user: () => [...authKeys.all, 'user'] as const,
 };
 
-// Get current user
+// Get current user (mock - returns first customer)
 export const useUser = () => {
   return useQuery({
     queryKey: authKeys.user(),
     queryFn: async () => {
-      const response = await apiClient.get('/auth/me');
-      return response.data as User;
+      const token = localStorage.getItem('auth_token');
+      if (!token) return null;
+      // Mock: return first customer if token exists
+      return mockCustomers[0];
     },
     retry: false,
   });
 };
 
-// Send verification code (phone-only auth)
+// Identify customer (send code)
 export const useSendCode = () => {
   return useMutation({
     mutationFn: async (input: SendCodeInput) => {
-      const response = await apiClient.post('/auth/send-code', input);
+      const response = await mockApi.identifyCustomer(input.phone_number, input.display_name, input.device_id);
       return response.data;
     },
   });
 };
 
-// Login with phone + code
-export const useLogin = () => {
+// Verify OTP
+export const useVerifyOtp = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: LoginInput) => {
-      const response = await apiClient.post('/auth/login', input);
-      return response.data as { token: string; user: User };
+    mutationFn: async (input: VerifyOtpInput) => {
+      const response = await mockApi.verifyOtp(input.otp_session_id, input.otp_code);
+      return response.data;
     },
     onSuccess: (data) => {
       // Store token
-      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_token', data.access_token);
       // Set user in cache
-      queryClient.setQueryData(authKeys.user(), data.user);
+      queryClient.setQueryData(authKeys.user(), data.customer);
     },
   });
 };
@@ -70,7 +66,7 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.post('/auth/logout');
+      // Mock logout
     },
     onSuccess: () => {
       localStorage.removeItem('auth_token');
